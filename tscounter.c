@@ -3,10 +3,22 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+
+union semun{
+	int val;
+	struct semid_ds *buf;
+	ushort *array;
+};
+
+#define PATH "/mnt/c"
 
 typedef struct __counter_t {
     int value;
-    pthread_mutex_t lock;
+    key_t key;  
+    struct sembuf s;
 } counter_t;
 
 unsigned int loop_cnt;
@@ -14,25 +26,67 @@ counter_t counter;
 
 void init(counter_t *c) {
     c->value = 0;
-    pthread_mutex_init(&c->lock, NULL);
+    key_t key;
+    key = ftok(PATH, 'z');
+    int semid = semget(key, 1, 0600 | IPC_CREAT);
 }
 
 void increment(counter_t *c) {
-    pthread_mutex_lock(&c->lock);
+   
+    int semid; 
+    struct sembuf s;  
+    /* Lock */
+    s.sem_num = 0;
+    s.sem_op = -1; 
+    s.sem_flg = 0;
+    semop(semid, &s, 1);
+    
     c->value++;
-    pthread_mutex_unlock(&c->lock);
+    
+    /* Unlock */
+    s.sem_num = 0;
+    s.sem_op = 1;
+    s.sem_flg = 0;
+    semop(semid, &s, 1);
 }
+
 
 void decrement(counter_t *c) {
-    pthread_mutex_lock(&c->lock);
-    c->value--;
-    pthread_mutex_unlock(&c->lock);
+    
+    int semid;  
+    struct sembuf s;   
+     /* Lock */
+    s.sem_num = 0;
+    s.sem_op = -1; 
+    s.sem_flg = 0;
+    semop(semid, &s, 1);	
+    
+    c->value--;    
+    
+    /* Unlock */
+    s.sem_num = 0;
+    s.sem_op = 1;
+    s.sem_flg = 0;
+    semop(semid, &s, 1);
 }
 
-int get(counter_t *c) {
-    pthread_mutex_lock(&c->lock);
+
+int get(counter_t *c) { 
+    int semid;  
+    struct sembuf s; 
+     /* Lock */
+    s.sem_num = 0;
+    s.sem_op = -1; 
+    s.sem_flg = 0;
+    semop(semid, &s, 1);
+    
     int rc = c->value;
-    pthread_mutex_unlock(&c->lock);
+    
+    /* Unlock */
+    s.sem_num = 0;
+    s.sem_op = 1;
+    s.sem_flg = 0;
+    semop(semid, &s, 1);
     return rc;
 }
 
@@ -48,9 +102,32 @@ void *mythread(void *arg)
     printf("%s: done\n", letter);
     return NULL;
 }
-                                                                             
+    
+
+
 int main(int argc, char *argv[])
-{                    
+{   
+    /* semaphore 변수 선언 */	
+    key_t key;
+    int semid;  
+    union semun arg;
+    key = ftok(PATH, 'z'); 
+    
+    if (key<0){
+	    perror(argv[0]);
+	    exit(1);
+    }
+    semid = semget(key, 1, 0600 | IPC_CREAT);
+    if (semid<0){
+	    perror(argv[0]);
+	    exit(1);
+    }
+    printf("semid=%d\n", semid);
+    
+    arg.val=1;    
+    semctl(semid, 0, SETVAL, arg);
+    /* semaphore 변수 선언 끝 */
+
     loop_cnt = atoi(argv[1]);
 
     init(&counter);
