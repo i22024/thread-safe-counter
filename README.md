@@ -18,7 +18,7 @@ Semaphore  performance
 
 
 Mutex does not have a longer running time than Semaphore because it simply locks and unlocks an object so that two threads cannot use it at the same time.
-If a semaphore is used, the shared resource can be used by the process according to the semaphore value obtained through the function, and if another process is being used, the CPU is waiting quietly.
+If a semaphore is used, the shared resource can be used by the process according to the semaphore value obtained through the function, and if another process is being used, the CPU is waiting quietly. What's more, semaphores have no concept of a lock owner and multiple threads can enter critical sections. 
 A process using a semaphore must check the semaphore value and change it while using the resource, so that other semaphore users wait.
 The semaphore value is also continuously changed, resulting in many code lines during iteration, and the CPU's waiting time becomes longer in proportion to the number of iterations.
 Therefore, I think that this difference in time occurred because the CPU spends more time waiting than the Mutex.   
